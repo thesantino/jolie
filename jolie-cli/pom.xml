@@ -60,6 +60,27 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.teavm</groupId>
+                <artifactId>teavm-maven-plugin</artifactId>
+                <version>0.16.0</version>
+                <executions>
+                    <execution>
+                        <id>compile-jolie-wasm</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>jolie.Jolie</mainClass>
+                            <targetType>WEBASSEMBLY_GC</targetType>
+                            <targetDirectory>${project.build.directory}/teavm-wasm</targetDirectory>
+                            <optimizationLevel>SIMPLE</optimizationLevel>
+                            <debugInformationGenerated>true</debugInformationGenerated>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
     <description>The Jolie command line interface.</description>
@@ -78,6 +99,11 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>jolie-js</artifactId>
             <version>${jolie.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.teavm</groupId>
+            <artifactId>teavm-classlib</artifactId>
+            <version>0.16.0</version>
         </dependency>
     </dependencies>
     <distributionManagement>
