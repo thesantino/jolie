@@ -91,20 +91,30 @@ public class JolieCompatPlugin implements TeaVMPlugin {
 					continue;
 				}
 				for( int i = 0; i < program.basicBlockCount(); i++ ) {
-					for( Instruction ins : program.basicBlockAt( i ) ) {
+					java.util.List< Instruction > list = new java.util.ArrayList<>();
+					for( Instruction x : program.basicBlockAt( i ) ) {
+						list.add( x );
+					}
+					for( Instruction ins : list ) {
 						if( ins instanceof InvokeInstruction ) {
 							rewrite( (InvokeInstruction) ins );
-						}
-						if( ins instanceof org.teavm.model.instructions.ConstructInstruction ) {
-							org.teavm.model.instructions.ConstructInstruction c =
-								(org.teavm.model.instructions.ConstructInstruction) ins;
-							String repl = NEW_TYPE.get( c.getType() );
-							if( repl != null ) {
-								c.setType( repl );
-							}
+						} else if( ins instanceof org.teavm.model.instructions.ConstructInstruction ) {
+							rewriteConstruct( (org.teavm.model.instructions.ConstructInstruction) ins );
 						}
 					}
 				}
+			}
+		}
+
+		private void rewriteConstruct( org.teavm.model.instructions.ConstructInstruction c ) {
+			String repl = NEW_TYPE.get( c.getType() );
+			if( repl != null ) {
+				c.setType( repl );
+			} else if( c.getType().equals( "jolie.net.CommCore$SelectorThread" ) ) {
+				org.teavm.model.instructions.NullConstantInstruction n =
+					new org.teavm.model.instructions.NullConstantInstruction();
+				n.setReceiver( c.getReceiver() );
+				c.replace( n );
 			}
 		}
 
@@ -206,6 +216,30 @@ public class JolieCompatPlugin implements TeaVMPlugin {
 			}
 			if( m.getName().equals( "<init>" ) && NEW_TYPE.containsKey( owner ) ) {
 				inv.setMethod( new MethodReference( NEW_TYPE.get( owner ), m.getDescriptor() ) );
+				return;
+			}
+			// SelectorThread is never constructed any more, so drop its constructor call
+			if( owner.equals( "jolie.net.CommCore$SelectorThread" ) && m.getName().equals( "<init>" ) ) {
+				inv.delete();
+				return;
+			}
+			// CommCore.shutdown calls selector.wakeup(); no selectors exist
+			if( owner.equals( "java.nio.channels.Selector" ) && m.getName().equals( "wakeup" ) ) {
+				inv.delete();
+				return;
+			}
+			// socket factory constructors
+			if( m.getName().equals( "<init>" ) && NEW_TYPE.containsKey( owner ) ) {
+				inv.setMethod( new MethodReference( NEW_TYPE.get( owner ), m.getDescriptor() ) );
+				return;
+			}
+			if( owner.equals( "java.lang.Runtime" ) && m.getName().equals( "availableProcessors" )
+				&& inv.getInstance() != null ) {
+				Variable self = inv.getInstance();
+				inv.setType( InvocationType.SPECIAL );
+				inv.setMethod( RUNTIME_PROCESSORS );
+				inv.setInstance( null );
+				inv.setArguments( self );
 				return;
 			}
 			if( owner.equals( "java.lang.ClassLoader" ) && m.getName().equals( "loadClass" )
