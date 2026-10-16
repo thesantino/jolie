@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.jolie-lang</groupId>
@@ -13,7 +13,7 @@
     <groupId>org.jolie-lang</groupId>
     <artifactId>jolie-cli</artifactId>
     <name>jolie-cli</name>
-	<url>${jolie.url}</url>
+    <url>${jolie.url}</url>
     <packaging>jar</packaging>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -55,7 +55,8 @@
                                     <destFileName>${project.artifactId}.jar</destFileName>
                                 </artifactItem>
                             </artifactItems>
-                            <outputDirectory>${project.parent.basedir}/${jolie.installation.directory}</outputDirectory>
+                            <outputDirectory>
+                                ${project.parent.basedir}/${jolie.installation.directory}</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>
@@ -73,7 +74,7 @@
                         </goals>
                         <configuration>
                             <mainClass>jolie.Jolie</mainClass>
-                            <targetType>WEBASSEMBLY_GC</targetType>
+                            <targetType>JAVASCRIPT</targetType>
                             <targetDirectory>${project.build.directory}/teavm-wasm</targetDirectory>
                             <optimizationLevel>SIMPLE</optimizationLevel>
                             <debugInformationGenerated>true</debugInformationGenerated>

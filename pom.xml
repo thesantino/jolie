@@ -30,6 +30,7 @@
 		<module>build-tools</module>
 		<module>libjolie</module>
 		<module>jolie</module>
+		<module>jolie-browser</module>
 		<module>jolie-cli</module>
 		<module>lib/jolie-js</module>
 		<module>lib/jolie-ssl</module>
