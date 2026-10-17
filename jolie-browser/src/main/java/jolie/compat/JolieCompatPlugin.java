@@ -82,9 +82,36 @@ public class JolieCompatPlugin implements TeaVMPlugin {
 		private static final MethodReference RUNTIME_PROCESSORS = new MethodReference(
 			"jolie.compat.RuntimeCompat", "availableProcessors",
 			ValueType.object( "java.lang.Runtime" ), ValueType.INTEGER );
+		private static final MethodReference JAVA_SERVICE_CREATE = new MethodReference(
+			"jolie.compat.JavaServices", "create",
+			ValueType.object( "java.lang.Object" ), ValueType.object( "java.lang.String" ),
+			ValueType.object( "jolie.runtime.JavaService" ) );
+		private static final MethodReference CLASS_GET_METHOD = new MethodReference(
+			"jolie.compat.ReflectCompat", "getMethod",
+			ValueType.object( "java.lang.Class" ), ValueType.object( "java.lang.String" ),
+			ValueType.arrayOf( ValueType.object( "java.lang.Class" ) ),
+			ValueType.object( "java.lang.reflect.Method" ) );
+
+		private String current = "";
+		private static final MethodReference EMBEDDING_FACTORY = new MethodReference(
+			"jolie.compat.Embedding", "factory",
+			ValueType.object( "jolie.Interpreter" ), ValueType.object( "java.lang.String" ),
+			ValueType.object( "jolie.runtime.embedding.EmbeddedServiceLoaderFactory" ) );
+
+		private static final MethodReference SCHED_SHUTDOWN_NOW = new MethodReference(
+			"jolie.compat.SchedulerCompat", "shutdownNow",
+			ValueType.object( "java.lang.Object" ), ValueType.object( "java.util.List" ) );
+		private static final MethodReference SCHED_SHUTDOWN = new MethodReference(
+			"jolie.compat.SchedulerCompat", "shutdown",
+			ValueType.object( "java.lang.Object" ), ValueType.VOID );
+		private static final MethodReference SCHED_AWAIT = new MethodReference(
+			"jolie.compat.SchedulerCompat", "awaitTermination",
+			ValueType.object( "java.lang.Object" ), ValueType.LONG,
+			ValueType.object( "java.util.concurrent.TimeUnit" ), ValueType.BOOLEAN );
 
 		@Override
 		public void transformClass( ClassHolder holder, ClassHolderTransformerContext ctx ) {
+			current = holder.getName();
 			for( MethodHolder method : holder.getMethods() ) {
 				Program program = method.getProgram();
 				if( program == null ) {
@@ -241,6 +268,68 @@ public class JolieCompatPlugin implements TeaVMPlugin {
 				inv.setInstance( null );
 				inv.setArguments( self );
 				return;
+			}
+			if( owner.equals( "jolie.runtime.embedding.JavaServiceNodeLoader" )
+				&& m.getName().equals( "loadJavaClass" )
+				&& inv.getInstance() != null && inv.getArguments().size() == 1 ) {
+				Variable self = inv.getInstance();
+				Variable name = inv.getArguments().get( 0 );
+				inv.setType( InvocationType.SPECIAL );
+				inv.setMethod( JAVA_SERVICE_CREATE );
+				inv.setInstance( null );
+				inv.setArguments( self, name );
+				return;
+			}
+			if( current.equals( "jolie.runtime.JavaService" )
+				&& owner.equals( "java.lang.Class" ) && m.getName().equals( "getMethod" )
+				&& inv.getInstance() != null && inv.getArguments().size() == 2 ) {
+				Variable self = inv.getInstance();
+				Variable name = inv.getArguments().get( 0 );
+				Variable params = inv.getArguments().get( 1 );
+				inv.setType( InvocationType.SPECIAL );
+				inv.setMethod( CLASS_GET_METHOD );
+				inv.setInstance( null );
+				inv.setArguments( self, name, params );
+				return;
+			}
+			if( owner.equals( "jolie.Interpreter" ) && m.getName().equals( "getEmbeddedServiceLoaderFactory" )
+				&& inv.getInstance() != null && inv.getArguments().size() == 1 ) {
+				Variable self = inv.getInstance();
+				Variable name = inv.getArguments().get( 0 );
+				inv.setType( InvocationType.SPECIAL );
+				inv.setMethod( EMBEDDING_FACTORY );
+				inv.setInstance( null );
+				inv.setArguments( self, name );
+				return;
+			}
+			if( owner.equals( "java.util.concurrent.ScheduledExecutorService" ) && inv.getInstance() != null ) {
+				MethodReference t = null;
+				switch( m.getName() ) {
+				case "shutdownNow":
+					if( inv.getArguments().size() == 0 )
+						t = SCHED_SHUTDOWN_NOW;
+					break;
+				case "shutdown":
+					if( inv.getArguments().size() == 0 )
+						t = SCHED_SHUTDOWN;
+					break;
+				case "awaitTermination":
+					if( inv.getArguments().size() == 2 )
+						t = SCHED_AWAIT;
+					break;
+				}
+				if( t != null ) {
+					Variable[] args = new Variable[ inv.getArguments().size() + 1 ];
+					args[ 0 ] = inv.getInstance();
+					for( int k = 0; k < inv.getArguments().size(); k++ ) {
+						args[ k + 1 ] = inv.getArguments().get( k );
+					}
+					inv.setType( InvocationType.SPECIAL );
+					inv.setMethod( t );
+					inv.setInstance( null );
+					inv.setArguments( args );
+					return;
+				}
 			}
 			if( owner.equals( "java.lang.ClassLoader" ) && m.getName().equals( "loadClass" )
 				&& inv.getInstance() != null && inv.getArguments().size() == 1 ) {

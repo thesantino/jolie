@@ -14,6 +14,7 @@ public final class SingleThreadScheduler implements TScheduledExecutorService {
 	private final List< Runnable > pending = new ArrayList<>();
 	private boolean shutdown;
 	private int active;
+	private final List< TaskFuture< Object > > futures = new ArrayList<>();
 
 	public SingleThreadScheduler( ThreadFactory factory ) {
 		this.factory = factory;
@@ -27,6 +28,9 @@ public final class SingleThreadScheduler implements TScheduledExecutorService {
 			try {
 				Thread.sleep( ms );
 			} catch( InterruptedException e ) {
+				synchronized( this ) {
+					pending.remove( task );
+				}
 				finish( task, false );
 				return;
 			}
@@ -50,9 +54,12 @@ public final class SingleThreadScheduler implements TScheduledExecutorService {
 				return f;
 			}
 			pending.add( task );
+			futures.add( f );
 			active++;
 		}
-		factory.newThread( r ).start();
+		Thread t = factory.newThread( r );
+		f.setThread( t );
+		t.start();
 		return f;
 	}
 
@@ -94,6 +101,10 @@ public final class SingleThreadScheduler implements TScheduledExecutorService {
 		shutdown = true;
 		List< Runnable > out = new ArrayList<>( pending );
 		pending.clear();
+		for( TaskFuture< Object > x : futures ) {
+			x.cancel( true );
+		}
+		futures.clear();
 		return out;
 	}
 

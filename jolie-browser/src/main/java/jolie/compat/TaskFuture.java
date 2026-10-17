@@ -31,6 +31,12 @@ public final class TaskFuture< V > implements ScheduledFuture< V > {
 		return true;
 	}
 
+	private Thread thread;
+
+	public synchronized void setThread( Thread t ) {
+		this.thread = t;
+	}
+
 	@Override
 	public synchronized boolean cancel( boolean mayInterrupt ) {
 		if( done )
@@ -38,6 +44,9 @@ public final class TaskFuture< V > implements ScheduledFuture< V > {
 		cancelled = true;
 		done = true;
 		notifyAll();
+		if( thread != null ) {
+			thread.interrupt();
+		}
 		return true;
 	}
 

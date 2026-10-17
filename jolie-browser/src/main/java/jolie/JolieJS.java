@@ -259,4 +259,118 @@ public class JolieJS {
 			return "FAIL " + e;
 		}
 	}
+
+	private static volatile jolie.Interpreter current;
+
+	@JSExport
+	public static String run( String source ) {
+		jolie.compat.JavaServices.register( "joliex.io.ConsoleService", joliex.io.ConsoleService::new );
+		jolie.compat.JavaServices.register( "joliex.util.TimeService", joliex.util.TimeService::new );
+
+		// stop any program still running from a previous click
+		stop();
+
+		new Thread( () -> {
+			String stage = "start";
+			jolie.Interpreter[] mine = new jolie.Interpreter[ 1 ]; // visible to try and catch
+
+			try {
+				URI mainUri = URI.create( "file:///main.ol" );
+				jolie.lang.parse.module.Modules.freeCache( mainUri );
+
+				stage = "source";
+				jolie.lang.parse.module.ModuleSource ms = jolie.lang.parse.module.ModuleSource.create(
+					mainUri,
+					new ByteArrayInputStream( source.getBytes( StandardCharsets.UTF_8 ) ),
+					"Main" );
+
+				stage = "configuration";
+				jolie.Interpreter.Configuration conf = jolie.Interpreter.Configuration.create(
+					-1, 0,
+					jolie.runtime.correlation.CorrelationEngine.Type.SIMPLE,
+					new String[ 0 ], new String[ 0 ], new java.net.URL[ 0 ],
+					ms, "UTF-8", new String[ 0 ],
+					new java.util.HashMap< String, jolie.lang.parse.Scanner.Token >(),
+					new jolie.JolieClassLoader( new java.net.URL[ 0 ], JolieJS.class.getClassLoader() ), false, false,
+					false, "all", "console", false, false, 5L * 60 * 1000,
+					java.util.logging.Level.INFO, new String[ 0 ], "Main",
+					java.util.Optional.empty() );
+
+				stage = "interpreter";
+				jolie.Interpreter i = new jolie.Interpreter( conf,
+					java.util.Optional.of( jolie.runtime.Value.create() ), java.util.Optional.empty() );
+				current = i;
+				mine[ 0 ] = i;
+
+				stage = "run";
+				i.run();
+				if( current == i )
+					current = null;
+				jolie.compat.Output.write( "\n[finished]\n" );
+			} catch( Throwable e ) {
+				jolie.compat.Output.write( "ERROR at " + stage + ": " + e + "\n" );
+				if( current == mine[ 0 ] )
+					current = null;
+				Throwable c = e.getCause();
+				if( c != null )
+					jolie.compat.Output.write( "caused by: " + c + "\n" );
+				else
+					jolie.compat.Output.write( "no cause\n" );
+				e.printStackTrace();
+			}
+		} ).start();
+
+		return "started";
+	}
+
+	@JSExport
+	public static String stop() {
+		jolie.Interpreter i = current;
+		if( i == null ) {
+			return "nothing running";
+		}
+		current = null;
+		new Thread( () -> {
+			try {
+				i.exit( 1000 );
+			} catch( Throwable e ) {
+				jolie.compat.Output.write( "stop error: " + e + "\n" );
+			}
+		} ).start();
+		return "stopping";
+	}
+
+	@JSExport
+	public static String probeService() {
+		StringBuilder sb = new StringBuilder();
+		sb.append( t( "register", () -> {
+			jolie.compat.JavaServices.register( "joliex.io.ConsoleService", joliex.io.ConsoleService::new );
+			return "ok";
+		} ) );
+		sb.append( t( "new-ConsoleService", () -> {
+			new joliex.io.ConsoleService();
+			return "ok";
+		} ) );
+		sb.append( t( "registry-create",
+			() -> String.valueOf( jolie.compat.JavaServices.create( null, "joliex.io.ConsoleService" ) ) ) );
+		sb.append( t( "Value.create", () -> String.valueOf( jolie.runtime.Value.create() ) ) );
+		sb.append( t( "new-1", () -> {
+			new joliex.io.ConsoleService();
+			return "ok";
+		} ) );
+		sb.append( t( "new-2", () -> {
+			new joliex.io.ConsoleService();
+			return "ok";
+		} ) );
+		sb.append( t( "declaredMethods",
+			() -> String.valueOf( joliex.io.ConsoleService.class.getDeclaredMethods().length ) ) );
+		sb.append( t( "methods", () -> String.valueOf( joliex.io.ConsoleService.class.getMethods().length ) ) );
+		sb.append( t( "annotation", () -> {
+			for( java.lang.reflect.Method m : joliex.io.ConsoleService.class.getDeclaredMethods() )
+				if( m.getName().equals( "println" ) )
+					return String.valueOf( m.isAnnotationPresent( jolie.runtime.embedding.RequestResponse.class ) );
+			return "println not found";
+		} ) );
+		return sb.toString();
+	}
 }

@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public interface TFuture< V > {
+
 	boolean cancel( boolean mayInterruptIfRunning );
 
 	boolean isCancelled();
@@ -14,4 +15,5 @@ public interface TFuture< V > {
 	V get() throws InterruptedException, ExecutionException;
 
 	V get( long timeout, TimeUnit unit ) throws InterruptedException, ExecutionException, TimeoutException;
+
 }
