@@ -260,29 +260,35 @@ public class JolieJS {
 		}
 	}
 
-	private static volatile jolie.Interpreter current;
+	private static final java.util.Map< String, jolie.Interpreter > RUNNING =
+		new java.util.concurrent.ConcurrentHashMap<>();
+
+	private static void registerAll() {
+		jolie.compat.JavaServices.register( "joliex.io.ConsoleService", joliex.io.ConsoleService::new );
+		jolie.compat.JavaServices.register( "joliex.util.TimeService", joliex.util.TimeService::new );
+		jolie.compat.Protocols.register( "sodep", jolie.net.SodepProtocolFactory::new );
+	}
 
 	@JSExport
 	public static String run( String source ) {
-		jolie.compat.JavaServices.register( "joliex.io.ConsoleService", joliex.io.ConsoleService::new );
-		jolie.compat.JavaServices.register( "joliex.util.TimeService", joliex.util.TimeService::new );
+		return start( "main", source );
+	}
 
-		// stop any program still running from a previous click
-		stop();
+	@JSExport
+	public static String start( String name, String source ) {
+		registerAll();
+		stopProgram( name );
 
 		new Thread( () -> {
 			String stage = "start";
-			jolie.Interpreter[] mine = new jolie.Interpreter[ 1 ]; // visible to try and catch
-
+			jolie.Interpreter[] mine = new jolie.Interpreter[ 1 ];
 			try {
-				URI mainUri = URI.create( "file:///main.ol" );
-				jolie.lang.parse.module.Modules.freeCache( mainUri );
+				URI uri = URI.create( "file:///" + name + ".ol" );
+				jolie.lang.parse.module.Modules.freeCache( uri );
 
 				stage = "source";
 				jolie.lang.parse.module.ModuleSource ms = jolie.lang.parse.module.ModuleSource.create(
-					mainUri,
-					new ByteArrayInputStream( source.getBytes( StandardCharsets.UTF_8 ) ),
-					"Main" );
+					uri, new ByteArrayInputStream( source.getBytes( StandardCharsets.UTF_8 ) ), "Main" );
 
 				stage = "configuration";
 				jolie.Interpreter.Configuration conf = jolie.Interpreter.Configuration.create(
@@ -299,37 +305,27 @@ public class JolieJS {
 				stage = "interpreter";
 				jolie.Interpreter i = new jolie.Interpreter( conf,
 					java.util.Optional.of( jolie.runtime.Value.create() ), java.util.Optional.empty() );
-				current = i;
 				mine[ 0 ] = i;
+				RUNNING.put( name, i );
 
 				stage = "run";
 				i.run();
-				if( current == i )
-					current = null;
-				jolie.compat.Output.write( "\n[finished]\n" );
+				jolie.compat.Output.write( "\n[" + name + " finished]\n" );
 			} catch( Throwable e ) {
-				jolie.compat.Output.write( "ERROR at " + stage + ": " + e + "\n" );
-				if( current == mine[ 0 ] )
-					current = null;
-				Throwable c = e.getCause();
-				if( c != null )
-					jolie.compat.Output.write( "caused by: " + c + "\n" );
-				else
-					jolie.compat.Output.write( "no cause\n" );
-				e.printStackTrace();
+				jolie.compat.Output.write( "[" + name + "] ERROR at " + stage + ": " + e + "\n" );
+			} finally {
+				if( mine[ 0 ] != null )
+					RUNNING.remove( name, mine[ 0 ] );
 			}
 		} ).start();
-
 		return "started";
 	}
 
 	@JSExport
-	public static String stop() {
-		jolie.Interpreter i = current;
-		if( i == null ) {
+	public static String stopProgram( String name ) {
+		jolie.Interpreter i = RUNNING.remove( name );
+		if( i == null )
 			return "nothing running";
-		}
-		current = null;
 		new Thread( () -> {
 			try {
 				i.exit( 1000 );
@@ -339,6 +335,14 @@ public class JolieJS {
 		} ).start();
 		return "stopping";
 	}
+
+	@JSExport
+	public static String stopAll() {
+		for( String n : RUNNING.keySet().toArray( new String[ 0 ] ) )
+			stopProgram( n );
+		return "stopping all";
+	}
+
 
 	@JSExport
 	public static String probeService() {
@@ -372,5 +376,36 @@ public class JolieJS {
 			return "println not found";
 		} ) );
 		return sb.toString();
+	}
+
+
+	@JSExport
+	public static void netEnable() {
+		jolie.compat.net.VirtualNetwork.enableBridge();
+	}
+
+	@JSExport
+	public static void netConnectResult( int id, int h ) {
+		jolie.compat.net.VirtualNetwork.connectResult( id, h );
+	}
+
+	@JSExport
+	public static void netIncoming( int port, int h ) {
+		jolie.compat.net.VirtualNetwork.incoming( port, h );
+	}
+
+	@JSExport
+	public static void netData( int h, String s ) {
+		jolie.compat.net.VirtualNetwork.data( h, s );
+	}
+
+	@JSExport
+	public static void netClosed( int h ) {
+		jolie.compat.net.VirtualNetwork.closed( h );
+	}
+
+	@JSExport
+	public static void netListenResult( int id, int ok ) {
+		jolie.compat.net.VirtualNetwork.listenResult( id, ok );
 	}
 }

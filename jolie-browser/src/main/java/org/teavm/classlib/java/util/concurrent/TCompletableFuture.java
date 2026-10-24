@@ -56,4 +56,10 @@ public class TCompletableFuture< T > implements Future< T > {
 		throws InterruptedException, ExecutionException, TimeoutException {
 		return inner.get( t, u );
 	}
+
+	public static < U > java.util.concurrent.CompletableFuture< U > completedFuture( U value ) {
+		TCompletableFuture< U > f = new TCompletableFuture<>();
+		f.complete( value );
+		return (java.util.concurrent.CompletableFuture< U >) (Object) f;
+	}
 }

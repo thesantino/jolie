@@ -17,4 +17,9 @@ public final class SchedulerCompat {
 	public static boolean awaitTermination( Object s, long t, TimeUnit u ) throws InterruptedException {
 		return ((SingleThreadScheduler) s).awaitTermination( t, u );
 	}
+
+	public static java.util.concurrent.ScheduledFuture< ? > schedule( Object s, Runnable task, long delay,
+		TimeUnit unit ) {
+		return ((SingleThreadScheduler) s).schedule( task, delay, unit );
+	}
 }

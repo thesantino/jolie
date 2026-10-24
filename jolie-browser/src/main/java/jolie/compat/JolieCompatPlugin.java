@@ -108,6 +108,16 @@ public class JolieCompatPlugin implements TeaVMPlugin {
 			"jolie.compat.SchedulerCompat", "awaitTermination",
 			ValueType.object( "java.lang.Object" ), ValueType.LONG,
 			ValueType.object( "java.util.concurrent.TimeUnit" ), ValueType.BOOLEAN );
+		private static final MethodReference PROTOCOL_FACTORY = new MethodReference(
+			"jolie.compat.Protocols", "create",
+			ValueType.object( "java.lang.Object" ), ValueType.object( "java.lang.String" ),
+			ValueType.object( "jolie.net.CommCore" ),
+			ValueType.object( "jolie.net.ext.CommProtocolFactory" ) );
+		private static final MethodReference SCHED_SCHEDULE = new MethodReference(
+			"jolie.compat.SchedulerCompat", "schedule",
+			ValueType.object( "java.lang.Object" ), ValueType.object( "java.lang.Runnable" ),
+			ValueType.LONG, ValueType.object( "java.util.concurrent.TimeUnit" ),
+			ValueType.object( "java.util.concurrent.ScheduledFuture" ) );
 
 		@Override
 		public void transformClass( ClassHolder holder, ClassHolderTransformerContext ctx ) {
@@ -317,6 +327,10 @@ public class JolieCompatPlugin implements TeaVMPlugin {
 					if( inv.getArguments().size() == 2 )
 						t = SCHED_AWAIT;
 					break;
+				case "schedule":
+					if( inv.getArguments().size() == 3 )
+						t = SCHED_SCHEDULE;
+					break;
 				}
 				if( t != null ) {
 					Variable[] args = new Variable[ inv.getArguments().size() + 1 ];
@@ -330,6 +344,17 @@ public class JolieCompatPlugin implements TeaVMPlugin {
 					inv.setArguments( args );
 					return;
 				}
+			}
+			if( owner.equals( "jolie.JolieClassLoader" ) && m.getName().equals( "createCommProtocolFactory" )
+				&& inv.getInstance() != null && inv.getArguments().size() == 2 ) {
+				Variable self = inv.getInstance();
+				Variable name = inv.getArguments().get( 0 );
+				Variable core = inv.getArguments().get( 1 );
+				inv.setType( InvocationType.SPECIAL );
+				inv.setMethod( PROTOCOL_FACTORY );
+				inv.setInstance( null );
+				inv.setArguments( self, name, core );
+				return;
 			}
 			if( owner.equals( "java.lang.ClassLoader" ) && m.getName().equals( "loadClass" )
 				&& inv.getInstance() != null && inv.getArguments().size() == 1 ) {

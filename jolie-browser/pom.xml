@@ -109,6 +109,11 @@
             <artifactId>teavm-classlib</artifactId>
             <version>0.16.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.jolie-lang</groupId>
+            <artifactId>sodep</artifactId>
+            <version>${jolie.version}</version>
+        </dependency>
     </dependencies>
     <distributionManagement>
         <repository>

@@ -14,6 +14,6 @@ public class BrowserListenerFactory extends CommListenerFactory {
 	@Override
 	public CommListener createListener( Interpreter interpreter, CommProtocolFactory protocolFactory,
 		InputPort inputPort ) throws IOException {
-		throw new IOException( "socket medium is not available in the browser" );
+		return new BrowserListener( interpreter, protocolFactory, inputPort );
 	}
 }

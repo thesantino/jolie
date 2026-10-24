@@ -12,6 +12,12 @@ public class BrowserChannelFactory extends CommChannelFactory {
 
 	@Override
 	public CommChannel createChannel( URI location, OutputPort port ) throws IOException {
-		throw new IOException( "socket medium is not available in the browser" );
+		try {
+			jolie.compat.net.VirtualNetwork.Connection c =
+				jolie.compat.net.VirtualNetwork.connect( location.getPort() );
+			return new BrowserCommChannel( c.toClient, c.toServer, location, port.getProtocol() );
+		} catch( java.net.URISyntaxException e ) {
+			throw new IOException( e );
+		}
 	}
 }
