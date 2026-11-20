@@ -36,7 +36,7 @@ public class BrowserCommChannel extends StreamingCommChannel implements Pollable
 		try {
 			if( inPipe.drained() ) {
 				closeImpl();
-				throw new ChannelClosingException();
+				throw new ChannelClosingException( "connection closed by peer" );
 			}
 			return protocol().recv( istream, ostream );
 		} catch( ChannelClosingException e ) {
@@ -46,7 +46,7 @@ public class BrowserCommChannel extends StreamingCommChannel implements Pollable
 				.write( "[chan recv] " + e.getClass().getName() + ": " + e.getMessage() + state() + "\n" );
 			if( inPipe.drained() ) {
 				closeImpl();
-				throw new ChannelClosingException();
+				throw new ChannelClosingException( "connection closed by peer" );
 			}
 			throw e;
 		}

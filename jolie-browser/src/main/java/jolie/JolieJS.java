@@ -408,4 +408,58 @@ public class JolieJS {
 	public static void netListenResult( int id, int ok ) {
 		jolie.compat.net.VirtualNetwork.listenResult( id, ok );
 	}
+
+	@JSExport
+	public static void probeThreads() {
+		new Thread( () -> {
+			final int n = 200;
+
+			long t0 = System.currentTimeMillis();
+			for( int i = 0; i < n; i++ ) {
+				Thread t = new Thread( () -> {
+				} );
+				t.start();
+				try {
+					t.join();
+				} catch( InterruptedException e ) {
+				}
+			}
+			long t1 = System.currentTimeMillis();
+			jolie.compat.Output.write( "thread start+join: " + (t1 - t0) / (double) n + " ms each\n" );
+
+			final Object lock = new Object();
+			final boolean[] turn = { false };
+			Thread other = new Thread( () -> {
+				for( int i = 0; i < n; i++ ) {
+					synchronized( lock ) {
+						while( !turn[ 0 ] ) {
+							try {
+								lock.wait();
+							} catch( InterruptedException e ) {
+							}
+						}
+						turn[ 0 ] = false;
+						lock.notifyAll();
+					}
+				}
+			} );
+			other.start();
+
+			long t2 = System.currentTimeMillis();
+			for( int i = 0; i < n; i++ ) {
+				synchronized( lock ) {
+					turn[ 0 ] = true;
+					lock.notifyAll();
+					while( turn[ 0 ] ) {
+						try {
+							lock.wait();
+						} catch( InterruptedException e ) {
+						}
+					}
+				}
+			}
+			long t3 = System.currentTimeMillis();
+			jolie.compat.Output.write( "wait/notify round trip: " + (t3 - t2) / (double) n + " ms each\n" );
+		} ).start();
+	}
 }
