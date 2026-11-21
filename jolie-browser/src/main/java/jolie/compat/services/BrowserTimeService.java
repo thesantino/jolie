@@ -1,10 +1,10 @@
-package joliex.util;
+package jolie.compat.services;
 
 import jolie.net.CommMessage;
 import jolie.runtime.JavaService;
 import jolie.runtime.Value;
 
-public class TimeService extends JavaService {
+public class BrowserTimeService extends JavaService {
 	@Override
 	public CommMessage callOperation( CommMessage m ) {
 		switch( m.operationName() ) {

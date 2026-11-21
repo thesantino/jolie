@@ -86,11 +86,6 @@ public class JolieCompatPlugin implements TeaVMPlugin {
 			"jolie.compat.JavaServices", "create",
 			ValueType.object( "java.lang.Object" ), ValueType.object( "java.lang.String" ),
 			ValueType.object( "jolie.runtime.JavaService" ) );
-		private static final MethodReference CLASS_GET_METHOD = new MethodReference(
-			"jolie.compat.ReflectCompat", "getMethod",
-			ValueType.object( "java.lang.Class" ), ValueType.object( "java.lang.String" ),
-			ValueType.arrayOf( ValueType.object( "java.lang.Class" ) ),
-			ValueType.object( "java.lang.reflect.Method" ) );
 
 		private String current = "";
 		private static final MethodReference EMBEDDING_FACTORY = new MethodReference(
@@ -119,9 +114,20 @@ public class JolieCompatPlugin implements TeaVMPlugin {
 			ValueType.LONG, ValueType.object( "java.util.concurrent.TimeUnit" ),
 			ValueType.object( "java.util.concurrent.ScheduledFuture" ) );
 
+		private static final MethodReference LOCALE_FOR_TAG = new MethodReference(
+			"jolie.compat.LocaleCompat", "forLanguageTag",
+			ValueType.object( "java.lang.String" ), ValueType.object( "java.util.Locale" ) );
+
 		@Override
 		public void transformClass( ClassHolder holder, ClassHolderTransformerContext ctx ) {
 			current = holder.getName();
+			if( holder.getName().equals( "joliex.util.JsonUtilsService" ) ) {
+				for( MethodHolder mh : new java.util.ArrayList<>( holder.getMethods() ) ) {
+					if( mh.getName().equals( "validateJson" ) ) {
+						holder.removeMethod( mh );
+					}
+				}
+			}
 			for( MethodHolder method : holder.getMethods() ) {
 				Program program = method.getProgram();
 				if( program == null ) {
@@ -270,6 +276,11 @@ public class JolieCompatPlugin implements TeaVMPlugin {
 				inv.setMethod( new MethodReference( NEW_TYPE.get( owner ), m.getDescriptor() ) );
 				return;
 			}
+			if( owner.equals( "java.util.Locale" ) && m.getName().equals( "forLanguageTag" )
+				&& inv.getArguments().size() == 1 ) {
+				inv.setMethod( LOCALE_FOR_TAG ); // already static, so only the target changes
+				return;
+			}
 			if( owner.equals( "java.lang.Runtime" ) && m.getName().equals( "availableProcessors" )
 				&& inv.getInstance() != null ) {
 				Variable self = inv.getInstance();
@@ -290,18 +301,13 @@ public class JolieCompatPlugin implements TeaVMPlugin {
 				inv.setArguments( self, name );
 				return;
 			}
-			if( current.equals( "jolie.runtime.JavaService" )
-				&& owner.equals( "java.lang.Class" ) && m.getName().equals( "getMethod" )
-				&& inv.getInstance() != null && inv.getArguments().size() == 2 ) {
-				Variable self = inv.getInstance();
-				Variable name = inv.getArguments().get( 0 );
-				Variable params = inv.getArguments().get( 1 );
-				inv.setType( InvocationType.SPECIAL );
-				inv.setMethod( CLASS_GET_METHOD );
-				inv.setInstance( null );
-				inv.setArguments( self, name, params );
-				return;
-			}
+			/*
+			 * if( current.equals( "jolie.runtime.JavaService" ) && owner.equals( "java.lang.Class" ) &&
+			 * m.getName().equals( "getMethod" ) && inv.getInstance() != null && inv.getArguments().size() == 2
+			 * ) { Variable self = inv.getInstance(); Variable name = inv.getArguments().get( 0 ); Variable
+			 * params = inv.getArguments().get( 1 ); inv.setType( InvocationType.SPECIAL ); inv.setMethod(
+			 * CLASS_GET_METHOD ); inv.setInstance( null ); inv.setArguments( self, name, params ); return; }
+			 */
 			if( owner.equals( "jolie.Interpreter" ) && m.getName().equals( "getEmbeddedServiceLoaderFactory" )
 				&& inv.getInstance() != null && inv.getArguments().size() == 1 ) {
 				Variable self = inv.getInstance();

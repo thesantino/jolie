@@ -1,9 +1,9 @@
-package joliex.io;
+package jolie.compat.services;
 
 import jolie.net.CommMessage;
 import jolie.runtime.JavaService;
 
-public class ConsoleService extends JavaService {
+public class BrowserConsoleService extends JavaService {
 	@Override
 	public CommMessage callOperation( CommMessage m ) {
 		switch( m.operationName() ) {

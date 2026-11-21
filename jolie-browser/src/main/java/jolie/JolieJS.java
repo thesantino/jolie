@@ -32,20 +32,18 @@ public class JolieJS {
 					true );
 
 			stage = "module-source";
-			jolie.lang.parse.module.ModuleSource ms =
-				jolie.lang.parse.module.ModuleSource.create(
-					URI.create( "file:///main.ol" ),
-					new ByteArrayInputStream( source.getBytes( StandardCharsets.UTF_8 ) ),
-					jolie.lang.parse.ast.ServiceNode.DEFAULT_MAIN_SERVICE_NAME );
+			jolie.lang.parse.module.ModuleSource ms = jolie.lang.parse.module.ModuleSource.create(
+				URI.create( "file:///main.ol" ),
+				new ByteArrayInputStream( source.getBytes( StandardCharsets.UTF_8 ) ),
+				jolie.lang.parse.ast.ServiceNode.DEFAULT_MAIN_SERVICE_NAME );
 
 			stage = "parseModule";
 			jolie.lang.parse.module.Modules.ModuleParsedResult r =
 				jolie.lang.parse.module.Modules.parseModule( cfg, ms );
 
 			stage = "verifier";
-			jolie.lang.parse.SemanticVerifier.Configuration conf =
-				new jolie.lang.parse.SemanticVerifier.Configuration(
-					jolie.lang.parse.ast.ServiceNode.DEFAULT_MAIN_SERVICE_NAME );
+			jolie.lang.parse.SemanticVerifier.Configuration conf = new jolie.lang.parse.SemanticVerifier.Configuration(
+				jolie.lang.parse.ast.ServiceNode.DEFAULT_MAIN_SERVICE_NAME );
 			new jolie.lang.parse.SemanticVerifier(
 				r.mainProgram(), new java.util.HashMap<>( r.symbolTables() ), conf ).validate();
 			return "OK";
@@ -167,9 +165,8 @@ public class JolieJS {
 	@JSExport
 	public static String probePort() {
 		try {
-			String code =
-				"interface I {\n RequestResponse: op( void )( void )\n}\n"
-					+ "inputPort P {\n location: \"local\"\n protocol: sodep\n interfaces: I\n}\n";
+			String code = "interface I {\n RequestResponse: op( void )( void )\n}\n"
+				+ "inputPort P {\n location: \"local\"\n protocol: sodep\n interfaces: I\n}\n";
 			Scanner sc = new Scanner(
 				new ByteArrayInputStream( code.getBytes( StandardCharsets.UTF_8 ) ),
 				URI.create( "file:///p.ol" ) );
@@ -264,9 +261,13 @@ public class JolieJS {
 		new java.util.concurrent.ConcurrentHashMap<>();
 
 	private static void registerAll() {
-		jolie.compat.JavaServices.register( "joliex.io.ConsoleService", joliex.io.ConsoleService::new );
-		jolie.compat.JavaServices.register( "joliex.util.TimeService", joliex.util.TimeService::new );
+		jolie.compat.JavaServices.register( "joliex.io.ConsoleService",
+			jolie.compat.services.BrowserConsoleService::new );
+		jolie.compat.JavaServices.register( "joliex.util.TimeService", jolie.compat.services.BrowserTimeService::new );
 		jolie.compat.Protocols.register( "sodep", jolie.net.SodepProtocolFactory::new );
+		jolie.compat.JavaServices.register( "joliex.util.StringUtils", joliex.util.StringUtils::new );
+		jolie.compat.JavaServices.register( "joliex.util.MathService", joliex.util.MathService::new );
+		jolie.compat.JavaServices.register( "joliex.util.JsonUtilsService", joliex.util.JsonUtilsService::new );
 	}
 
 	@JSExport
@@ -343,41 +344,143 @@ public class JolieJS {
 		return "stopping all";
 	}
 
-
 	@JSExport
 	public static String probeService() {
 		StringBuilder sb = new StringBuilder();
 		sb.append( t( "register", () -> {
-			jolie.compat.JavaServices.register( "joliex.io.ConsoleService", joliex.io.ConsoleService::new );
+			jolie.compat.JavaServices.register( "joliex.io.ConsoleService",
+				jolie.compat.services.BrowserConsoleService::new );
 			return "ok";
 		} ) );
 		sb.append( t( "new-ConsoleService", () -> {
-			new joliex.io.ConsoleService();
+			new jolie.compat.services.BrowserConsoleService();
 			return "ok";
 		} ) );
 		sb.append( t( "registry-create",
 			() -> String.valueOf( jolie.compat.JavaServices.create( null, "joliex.io.ConsoleService" ) ) ) );
 		sb.append( t( "Value.create", () -> String.valueOf( jolie.runtime.Value.create() ) ) );
 		sb.append( t( "new-1", () -> {
-			new joliex.io.ConsoleService();
+			new jolie.compat.services.BrowserConsoleService();
 			return "ok";
 		} ) );
 		sb.append( t( "new-2", () -> {
-			new joliex.io.ConsoleService();
+			new jolie.compat.services.BrowserConsoleService();
 			return "ok";
 		} ) );
 		sb.append( t( "declaredMethods",
-			() -> String.valueOf( joliex.io.ConsoleService.class.getDeclaredMethods().length ) ) );
-		sb.append( t( "methods", () -> String.valueOf( joliex.io.ConsoleService.class.getMethods().length ) ) );
+			() -> String.valueOf( jolie.compat.services.BrowserConsoleService.class.getDeclaredMethods().length ) ) );
+		sb.append( t( "methods",
+			() -> String.valueOf( jolie.compat.services.BrowserConsoleService.class.getMethods().length ) ) );
 		sb.append( t( "annotation", () -> {
-			for( java.lang.reflect.Method m : joliex.io.ConsoleService.class.getDeclaredMethods() )
+			for( java.lang.reflect.Method m : jolie.compat.services.BrowserConsoleService.class.getDeclaredMethods() )
 				if( m.getName().equals( "println" ) )
 					return String.valueOf( m.isAnnotationPresent( jolie.runtime.embedding.RequestResponse.class ) );
 			return "println not found";
 		} ) );
+		sb.append( t( "StringUtils-new", () -> {
+			new joliex.util.StringUtils();
+			return "ok";
+		} ) );
+		sb.append( t( "StringUtils-methods",
+			() -> String.valueOf( joliex.util.StringUtils.class.getDeclaredMethods().length ) ) );
+		sb.append( t( "StringUtils-annotation", () -> {
+			for( java.lang.reflect.Method m : joliex.util.StringUtils.class.getDeclaredMethods() )
+				if( m.getName().equals( "toUpperCase" ) )
+					return "found, params=" + m.getParameterTypes().length;
+			return "toUpperCase not found";
+		} ) );
+		sb.append( t( "call", () -> {
+			try {
+				jolie.runtime.Value req = jolie.runtime.Value.create( "Jolie" );
+				req.getFirstChild( "prefix" ).setValue( "Jo" );
+				jolie.net.CommMessage m = jolie.net.CommMessage.createRequest( "startsWith", "/", req );
+				jolie.net.CommMessage r = new joliex.util.StringUtils().callOperation( m );
+				return "fault=" + r.isFault() + " value="
+					+ (r.isFault() ? String.valueOf( r.fault() ) : r.value().strValue());
+			} catch( Throwable e ) {
+				return "FAIL " + e.getClass().getName() + " " + e.getMessage();
+			}
+		} ) );
+		sb.append( t( "returnType", () -> {
+			for( java.lang.reflect.Method m : joliex.util.StringUtils.class.getDeclaredMethods() )
+				if( m.getName().equals( "startsWith" ) )
+					return m.getReturnType().getName();
+			return "not found";
+		} ) );
+		sb.append( t( "Value.create(Boolean)", () -> {
+			try {
+				return String.valueOf( jolie.runtime.Value.class.getMethod( "create", Boolean.class ) != null );
+			} catch( Throwable e ) {
+				return "FAIL " + e;
+			}
+		} ) );
+		sb.append( t( "Value.create(boolean)", () -> {
+			try {
+				return String.valueOf( jolie.runtime.Value.class.getMethod( "create", boolean.class ) != null );
+			} catch( Throwable e ) {
+				return "FAIL " + e;
+			}
+		} ) );
+		sb.append( t( "Value.create(Integer)", () -> {
+			try {
+				return String.valueOf( jolie.runtime.Value.class.getMethod( "create", Integer.class ) != null );
+			} catch( Throwable e ) {
+				return "FAIL " + e;
+			}
+		} ) );
+		sb.append( t( "startsWith params", () -> {
+			for( java.lang.reflect.Method m : joliex.util.StringUtils.class.getDeclaredMethods() )
+				if( m.getName().equals( "startsWith" ) )
+					return m.getParameterTypes()[ 0 ].getName() + " -> " + m.getReturnType().getName();
+			return "not found";
+		} ) );
+		sb.append( t( "invoke startsWith(Value)", () -> {
+			try {
+				jolie.runtime.Value req = jolie.runtime.Value.create( "Jolie" );
+				req.getFirstChild( "prefix" ).setValue( "Jo" );
+				for( java.lang.reflect.Method m : joliex.util.StringUtils.class.getDeclaredMethods() )
+					if( m.getName().equals( "startsWith" ) )
+						return String.valueOf( m.invoke( new joliex.util.StringUtils(), req ) );
+				return "not found";
+			} catch( Throwable e ) {
+				return "FAIL " + e.getClass().getName() + " " + e.getMessage();
+			}
+		} ) );
+		sb.append( t( "invoke Value.create(Boolean)", () -> {
+			try {
+				return String.valueOf(
+					jolie.runtime.Value.class.getMethod( "create", Boolean.class ).invoke( null, Boolean.TRUE ) );
+			} catch( Throwable e ) {
+				return "FAIL " + e.getClass().getName() + " " + e.getMessage();
+			}
+		} ) );
+		sb.append( t( "invoke Value.create(Integer)", () -> {
+			try {
+				return String.valueOf( jolie.runtime.Value.class.getMethod( "create", Integer.class ).invoke( null,
+					Integer.valueOf( 5 ) ) );
+			} catch( Throwable e ) {
+				return "FAIL " + e.getClass().getName() + " " + e.getMessage();
+			}
+		} ) );
+		sb.append( t( "invoke JavaServiceHelpers.createValue", () -> {
+			try {
+				return String.valueOf( jolie.runtime.embedding.JavaServiceHelpers.class
+					.getMethod( "createValue", jolie.runtime.Value.class )
+					.invoke( null, jolie.runtime.Value.create( "x" ) ) );
+			} catch( Throwable e ) {
+				return "FAIL " + e.getClass().getName() + " " + e.getMessage();
+			}
+		} ) );
+		sb.append( t( "StartsWithRequest.fromValue lookup", () -> {
+			try {
+				return String.valueOf( joliex.util.StringUtils.StartsWithRequest.class
+					.getMethod( "fromValue", jolie.runtime.Value.class ) != null );
+			} catch( Throwable e ) {
+				return "FAIL " + e.getClass().getName();
+			}
+		} ) );
 		return sb.toString();
 	}
-
 
 	@JSExport
 	public static void netEnable() {
